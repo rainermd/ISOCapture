@@ -1,0 +1,197 @@
+import rebound
+import matplotlib.pyplot as plt
+import numpy as np
+average_time=10
+sim=rebound.Simulation()
+date="2025-01-22 18:00"
+sim.add("Sun",date=date)
+sim.add("Jupiter",date=date)
+size=1000000;
+size_new=4;
+sim.integrator="whfast"
+xc=np.random.uniform(1.76e-5,1+1.76e-5,size)
+yc=np.random.uniform(1.76e-5,1+1.76e-5,size)
+zc=np.random.uniform(1.76e-5,1+1.76e-5,size)
+sim.move_to_com()
+xj=sim.particles[1].x
+yj=sim.particles[1].y
+zj=sim.particles[1].z
+xr=xj+xc
+yr=yj+yc
+zr=zj+zc
+vxj=sim.particles[1].vx
+vyj=sim.particles[1].vy
+vzj=sim.particles[1].vz
+x=np.random.uniform(0,1,size_new)
+y=np.random.uniform(0,1,size_new)
+z=(((-vxj*(x-xj)-vyj*(y-yj))/vzj)+zj)
+basis1=np.zeros(3)
+basis1[0]=x[0]-x[1]
+basis1[1]=y[0]-y[1]
+basis1[2]=z[0]-z[1]
+basis2=np.zeros(3)
+basis2[0]=x[3]-x[2]
+basis2[1]=y[3]-y[2]
+basis2[2]=z[3]-z[2]
+basis1=(basis1/np.sqrt(basis1[0]**2+basis1[1]**2+basis1[2]**2))
+basis2=(basis2/np.sqrt(basis2[0]**2+basis2[1]**2+basis2[2]**2))  
+vc_vector=np.zeros((3,size))
+eccentricity=np.zeros(size)
+eccentricity_before=np.zeros(size)
+a=np.zeros(size)
+inc=np.zeros(size)
+Omega=np.zeros(size)
+omega=np.zeros(size)
+T=np.zeros(size)
+for i in range (0,size):
+    vc=np.random.uniform(0.0671,3.357)
+    component1=np.random.uniform(0,vc)
+    component2=np.sqrt(vc**2-component1**2)
+    vc_vector[:,i]=component1*basis1+component2*basis2
+time=1
+for i in range (0,size):
+     sim_temp = sim.copy()
+     sim_temp.dt=-0.01
+     sim_temp.add(x=xr[i],y=yr[i],z=zr[i],vx=vc_vector[0][i],vy=vc_vector[1][i],vz=vc_vector[2][i])
+     sim_temp.integrate(-time)
+     eccentricity_before[i]=sim_temp.particles[-1].e
+     sim_temp.dt=0.01
+     sim_temp.integrate(time)
+     eccentricity[i]=sim_temp.particles[-1].e
+     a[i]=sim_temp.particles[-1].a
+     inc[i]=sim_temp.particles[-1].inc
+     T[i]=sim_temp.particles[-1].T
+     Omega[i]=sim_temp.particles[-1].Omega
+     omega[i]=sim_temp.particles[-1].omega
+mask=eccentricity_before>=1
+mask1=eccentricity[mask]<1
+size_new=sum(mask1)
+eccentricity=eccentricity[mask]
+eccentricity_captured=eccentricity[mask1]
+a=a[mask]
+a_captured=a[mask1]
+inc=inc[mask]
+inc_captured=inc[mask1]
+T=T[mask]
+T_captured=T[mask1]
+Omega=Omega[mask]
+Omega_captured=Omega[mask1]
+omega=omega[mask]
+omega_captured=omega[mask1]
+text_file_path_1 = 'data_1.txt'
+text_file_path_2 = 'data_2.txt'
+text_file_path_3 = 'data_3.txt'
+text_file_path_4 = 'data_4.txt'
+text_file_path_5 = 'data_5.txt'
+text_file_path_6 = 'data_6.txt'
+np.savetxt(text_file_path_1,eccentricity_captured, delimiter=' ')
+np.savetxt(text_file_path_2,a_captured, delimiter=' ')
+np.savetxt(text_file_path_3,T_captured, delimiter=' ')
+np.savetxt(text_file_path_4,Omega_captured, delimiter=' ')
+np.savetxt(text_file_path_5,omega_captured, delimiter=' ')
+np.savetxt(text_file_path_6,inc_captured, delimiter=' ')
+eccentricity_captured=np.loadtxt(text_file_path_1, delimiter=' ')
+a_captured=np.loadtxt(text_file_path_2, delimiter=' ')
+T_captured=np.loadtxt(text_file_path_3, delimiter=' ')
+inc_captured=np.loadtxt(text_file_path_4, delimiter=' ')
+omega_captured=np.loadtxt(text_file_path_5, delimiter=' ')
+Omega_captured=np.loadtxt(text_file_path_6, delimiter=' ')
+num_rows= eccentricity_captured.shape
+date="2035-01-22 18:00"
+steps=100
+time=np.linspace(0,1000,num=steps)
+moons=["Io", "Europa","Ganymede","Callisto"]
+eccentricity_all=np.zeros((num_rows[0],steps))
+sim=rebound.Simulation()
+sim.integrator="whfast"
+sim.add("Sun",date=date)
+sim.add("Jupiter",date=date)
+sim.add(moons)
+sim.add("Saturn",date=date)
+sim.add("Uranus",date=date)
+sim.add("Neptune",date=date)
+sim.move_to_com()
+sim.collision="line"
+eccentricity=np.zeros((num_rows[0],steps))
+for i in range (0,(num_rows[0]-1)):
+    sim_temp=sim.copy()
+    sim_temp.dt=0.01
+    sim_temp.add(a=a_captured[i],e=eccentricity_captured[i],inc=inc_captured[i],Omega=Omega_captured[i],omega=omega_captured[i],T=T_captured[i])
+    for j,t in enumerate (time):
+        sim_temp.integrate(t)
+        if sim_temp.collision==True:
+            eccentricity[i][j]=-1
+            break 
+        else:
+            eccentricity[i][j]=sim_temp.particles[-1].e
+gh="eccentricityh.txt"
+np.savetxt(gh,eccentricity, delimiter=' ')
+g="eccentricityh.txt"
+h="eccentricity_jugdment.txt"
+eccentricity=np.loadtxt(g, delimiter=' ')
+steps=100
+num_rows,num_columns=eccentricity.shape
+mask=np.zeros((num_rows,num_columns))
+mask=eccentricity>=1
+ejected=np.zeros(num_columns)
+non_ejected=np.zeros(num_columns)
+bound=num_rows-1
+life_time=[];
+order_life_time=np.linspace(0,num_columns-1,num=num_columns)
+for i in range (0,(bound)):
+    if any(x==True for x in mask[i][:]):
+        ejected=np.vstack((ejected,eccentricity[i][:]))
+        mask_life_time=eccentricity[i][:]>=1
+        life=order_life_time[mask_life_time]
+        life=life[0]*10
+        life_time=np.concatenate((life_time,life),axis=None)
+    if all(x==False for x in mask[i][:]):
+        non_ejected=np.vstack((non_ejected,eccentricity[i][:]))
+num_ejected=ejected.shape
+num_merged=0
+bound_ejected=num_ejected[0]-1
+print(ejected)
+for i in range (0,(bound_ejected)):
+    if any(x==0 for x in ejected[i][:]):
+        num_merged=num_merged+1
+        continue
+num_ejected=num_ejected[0]-num_merged
+num_merged=0;
+for i in range (0,(bound)):
+    if any(x==0 for x in eccentricity[i][:]):
+        num_merged=num_merged+1
+        continue
+merge_rate=num_merged/num_rows
+ejection_rate=num_ejected/num_rows
+num_recaptured=np.zeros((num_ejected,num_columns))
+order=np.linspace(0,(num_columns-1),num=(num_columns))
+for i in range (0,(bound_ejected)):
+    recapture=ejected[i][:]
+    mask_inorbit=recapture<1
+    order_new=order[mask_inorbit]
+    num_columns_recaptured=order_new.shape[0]-1
+    for j in range (0,num_columns_recaptured):
+        diff=order_new[j+1]-order_new[j]
+        if diff>=2:
+            f=order_new[j]
+            num_recaptured[i][f]=1
+number_recaptured=sum(sum(num_recaptured))
+recapture_rate=number_recaptured/num_ejected
+average_life_time=np.average(life_time)
+print(recapture_rate,ejection_rate,merge_rate,average_life_time)
+gh="eccentricity_non_ejected.txt"
+ghl="eccentricity_ejected.txt"
+np.savetxt(gh,non_ejected, delimiter=' ')
+np.savetxt(ghl,ejected, delimiter=' ')
+times=np.linspace(0,1000,num=steps)
+num_rows=non_ejected.shape
+fig1, ax1 = plt.subplots()
+plt.axis([0, 1000, 0.97,0.99])
+for i in range (1,(num_rows[0])-1): 
+    ax1.plot(times,non_ejected[i][:])
+fig2, ax2 = plt.subplots()
+plt.axis([0, 1000, 0.99,1.01])
+num_rows_ejected=ejected.shape
+bound=(num_rows_ejected[0])-1
+for j in range (1,bound): 
+    ax2.plot(times,ejected[j][:])
